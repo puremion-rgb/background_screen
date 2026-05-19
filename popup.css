@@ -137,6 +137,8 @@ body {
 /* 하단 삭제 버튼 상자 */
 .card-action {
   padding: 0 10px 10px 10px;
+  display: flex;
+  gap: 6px;
 }
 
 /* 깔끔한 삭제 버튼 */
@@ -167,4 +169,23 @@ body {
   font-size: 12px;
   line-height: 1.6;
   padding: 40px 0;
+}
+
+.edit-btn {
+  background-color: #ebf8ff;
+  color: #3182ce;
+  border: 1px solid #bee3f8;
+  border-radius: 6px;
+  padding: 6px 0;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  width: 100%;
+  transition: all 0.2s ease;
+}
+
+.edit-btn:hover {
+  background-color: #3182ce;
+  color: white;
+  border-color: #3182ce;
 }
