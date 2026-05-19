@@ -189,3 +189,112 @@ body {
   color: white;
   border-color: #3182ce;
 }
+
+/* ===== 모달 배경 ===== */
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.45);
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  z-index: 999;
+}
+
+/* 숨김 처리 */
+.hidden {
+  display: none;
+}
+
+/* ===== 모달 본체 ===== */
+.modal-content {
+  width: 280px;
+  background: white;
+  border-radius: 14px;
+  padding: 18px;
+
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+
+  animation: modalFade 0.2s ease;
+}
+
+@keyframes modalFade {
+  from {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.modal-title {
+  margin: 0 0 14px 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: #2d3748;
+}
+
+/* 입력창 */
+.modal-input {
+  width: 100%;
+  box-sizing: border-box;
+
+  padding: 10px;
+  margin-bottom: 10px;
+
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+
+  font-size: 13px;
+}
+
+.modal-input:focus {
+  outline: none;
+  border-color: #3182ce;
+}
+
+/* 버튼 영역 */
+.modal-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+/* 취소 버튼 */
+.modal-cancel-btn {
+  flex: 1;
+
+  border: 1px solid #e2e8f0;
+  background: white;
+
+  padding: 10px;
+  border-radius: 8px;
+
+  cursor: pointer;
+}
+
+/* 저장 버튼 */
+.modal-save-btn {
+  flex: 1;
+
+  border: none;
+  background: #3182ce;
+  color: white;
+
+  padding: 10px;
+  border-radius: 8px;
+
+  cursor: pointer;
+}
+
+.modal-save-btn:hover {
+  background: #2b6cb0;
+}

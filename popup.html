@@ -28,5 +28,31 @@
     </div>
 
     <script src="popup.js"></script>
+
+    <div id="edit-modal" class="modal hidden">
+      <div class="modal-content">
+        <h3 class="modal-title">상품 수정</h3>
+
+        <input
+          type="text"
+          id="edit-title"
+          class="modal-input"
+          placeholder="상품명 입력"
+        />
+
+        <input
+          type="number"
+          id="edit-price"
+          class="modal-input"
+          placeholder="가격 입력"
+        />
+
+        <div class="modal-actions">
+          <button id="save-edit-btn" class="modal-save-btn">수정</button>
+
+          <button id="cancel-edit-btn" class="modal-cancel-btn">취소</button>
+        </div>
+      </div>
+    </div>
   </body>
 </html>
