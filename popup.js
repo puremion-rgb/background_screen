@@ -4,25 +4,35 @@ document.addEventListener("DOMContentLoaded", () => {
   // =========================
 
   const shoppingListContainer = document.getElementById("shopping-list");
+
   const emptyMessage = document.getElementById("empty-message");
+
   const clearAllBtn = document.getElementById("clear-all-btn");
 
   const searchInput = document.getElementById("search-input");
 
+  const sortSelect = document.getElementById("sort-select");
+
   // 수정 모달
   const editModal = document.getElementById("edit-modal");
+
   const editTitleInput = document.getElementById("edit-title");
+
   const editPriceInput = document.getElementById("edit-price");
 
   const saveEditBtn = document.getElementById("save-edit-btn");
+
   const cancelEditBtn = document.getElementById("cancel-edit-btn");
 
   // 추가 모달
   const addModal = document.getElementById("add-modal");
+
   const addTitleInput = document.getElementById("add-title");
+
   const addPriceInput = document.getElementById("add-price");
 
   const saveAddBtn = document.getElementById("save-add-btn");
+
   const cancelAddBtn = document.getElementById("cancel-add-btn");
 
   const previewImage = document.getElementById("preview-image");
@@ -32,55 +42,15 @@ document.addEventListener("DOMContentLoaded", () => {
   // =========================
 
   let currentEditId = null;
+
   let pendingTempItem = null;
 
-  // =========================
-  // 시작
-  // =========================
+  let currentSearch = "";
 
-  loadShoppingList();
-  loadTempItem();
-
-  // storage 변경 감지
-  chrome.storage.onChanged.addListener((changes, area) => {
-    if (area !== "local") return;
-
-    if (changes.tempShoppingItem?.newValue) {
-      loadTempItem();
-    }
-  });
+  let currentSort = "latest";
 
   // =========================
-  // 검색 기능
-  // =========================
-
-  let searchTimer = null;
-
-  searchInput.addEventListener("input", (e) => {
-    clearTimeout(searchTimer);
-
-    searchTimer = setTimeout(() => {
-      const keyword = e.target.value.trim().toLowerCase();
-
-      chrome.storage.local.get({ shoppingList: [] }, (data) => {
-        // 검색어 없으면 전체 출력
-        if (!keyword) {
-          renderShoppingList(data.shoppingList);
-          return;
-        }
-
-        // 검색
-        const filtered = data.shoppingList.filter((item) => {
-          return item.title.toLowerCase().includes(keyword);
-        });
-
-        renderShoppingList(filtered);
-      });
-    }, 250);
-  });
-
-  // =========================
-  // 가격 입력 자동 쉼표
+  // 가격 자동 쉼표
   // =========================
 
   function formatPriceInput(input) {
@@ -103,7 +73,46 @@ document.addEventListener("DOMContentLoaded", () => {
   formatPriceInput(editPriceInput);
 
   // =========================
-  // 임시 데이터 로드
+  // 초기 실행
+  // =========================
+
+  loadShoppingList();
+  loadTempItem();
+
+  // =========================
+  // 검색
+  // =========================
+
+  searchInput?.addEventListener("input", (e) => {
+    currentSearch = e.target.value;
+
+    loadShoppingList();
+  });
+
+  // =========================
+  // 정렬
+  // =========================
+
+  sortSelect?.addEventListener("change", (e) => {
+    currentSort = e.target.value;
+
+    loadShoppingList();
+  });
+
+  // =========================
+  // storage 감지
+  // =========================
+
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area !== "local") return;
+
+    if (changes.tempShoppingItem?.newValue) {
+      loadTempItem();
+    }
+  });
+
+  // =========================
+  // 임시 데이터 불러오기
   // =========================
 
   function loadTempItem() {
@@ -138,7 +147,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const list = data.shoppingList;
 
       const newItem = {
-        id: item.id || Date.now(),
+        id: Date.now(),
 
         title: item.title,
 
@@ -148,7 +157,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         pageUrl: item.pageUrl,
 
-        createdAt: item.createdAt,
+        createdAt: item.createdAt || new Date().toISOString(),
 
         updatedAt: new Date().toISOString(),
       };
@@ -156,7 +165,7 @@ document.addEventListener("DOMContentLoaded", () => {
       list.push(newItem);
 
       chrome.storage.local.set({ shoppingList: list }, () => {
-        renderShoppingList(list);
+        loadShoppingList();
       });
     });
   }
@@ -165,7 +174,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // 전체 삭제
   // =========================
 
-  clearAllBtn.addEventListener("click", () => {
+  clearAllBtn?.addEventListener("click", () => {
     if (!confirm("전체 삭제하시겠습니까?")) return;
 
     chrome.storage.local.set({ shoppingList: [] }, () => {
@@ -178,7 +187,6 @@ document.addEventListener("DOMContentLoaded", () => {
   // =========================
 
   shoppingListContainer.addEventListener("click", (e) => {
-    // 버튼 클릭 시 링크 이동 방지
     if (
       e.target.classList.contains("delete-btn") ||
       e.target.classList.contains("edit-btn")
@@ -189,16 +197,18 @@ document.addEventListener("DOMContentLoaded", () => {
     // 삭제
     if (e.target.classList.contains("delete-btn")) {
       deleteItem(Number(e.target.dataset.id));
+
       return;
     }
 
     // 수정
     if (e.target.classList.contains("edit-btn")) {
       openEditModal(Number(e.target.dataset.id));
+
       return;
     }
 
-    // 링크 이동
+    // 카드 클릭
     const card = e.target.closest(".card-link");
 
     if (card?.dataset.url) {
@@ -206,6 +216,32 @@ document.addEventListener("DOMContentLoaded", () => {
         url: card.dataset.url,
       });
     }
+  });
+
+  // =========================
+  // 상품 추가 저장
+  // =========================
+
+  saveAddBtn.addEventListener("click", () => {
+    if (!pendingTempItem) return;
+
+    saveItem({
+      ...pendingTempItem,
+
+      title: addTitleInput.value.trim() || "상품명 없음",
+
+      price: Number(addPriceInput.value.replace(/,/g, "")) || 0,
+    });
+
+    clearTemp();
+
+    closeAddModal();
+  });
+
+  cancelAddBtn.addEventListener("click", () => {
+    closeAddModal();
+
+    clearTemp();
   });
 
   // =========================
@@ -229,40 +265,12 @@ document.addEventListener("DOMContentLoaded", () => {
       chrome.storage.local.set({ shoppingList: list }, () => {
         closeModal();
 
-        renderShoppingList(list);
+        loadShoppingList();
       });
     });
   });
 
   cancelEditBtn.addEventListener("click", closeModal);
-
-  // =========================
-  // 추가 저장
-  // =========================
-
-  saveAddBtn.addEventListener("click", () => {
-    if (!pendingTempItem) return;
-
-    saveItem({
-      ...pendingTempItem,
-
-      title: addTitleInput.value.trim() || "상품명 없음",
-
-      price: Number(addPriceInput.value.replace(/,/g, "")) || 0,
-    });
-
-    clearTemp();
-
-    closeAddModal();
-
-    loadShoppingList();
-  });
-
-  cancelAddBtn.addEventListener("click", () => {
-    closeAddModal();
-
-    clearTemp();
-  });
 
   // =========================
   // 키 이벤트
@@ -289,30 +297,34 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   // =========================
-  // 모달 바깥 클릭 닫기
-  // =========================
-
-  editModal.addEventListener("click", (e) => {
-    if (e.target === editModal) {
-      closeModal();
-    }
-  });
-
-  addModal.addEventListener("click", (e) => {
-    if (e.target === addModal) {
-      closeAddModal();
-
-      clearTemp();
-    }
-  });
-
-  // =========================
   // 리스트 로드
   // =========================
 
   function loadShoppingList() {
     chrome.storage.local.get({ shoppingList: [] }, (data) => {
-      renderShoppingList(data.shoppingList);
+      let list = [...data.shoppingList];
+
+      // 검색
+      if (currentSearch.trim()) {
+        list = list.filter((item) =>
+          item.title.toLowerCase().includes(currentSearch.toLowerCase()),
+        );
+      }
+
+      // 정렬
+      if (currentSort === "lowPrice") {
+        list.sort((a, b) => (a.price || Infinity) - (b.price || Infinity));
+      }
+
+      if (currentSort === "highPrice") {
+        list.sort((a, b) => (b.price || 0) - (a.price || 0));
+      }
+
+      if (currentSort === "latest") {
+        list.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      }
+
+      renderShoppingList(list);
     });
   }
 
@@ -325,6 +337,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (!list.length) {
       emptyMessage.style.display = "block";
+
       return;
     }
 
@@ -340,7 +353,9 @@ document.addEventListener("DOMContentLoaded", () => {
       const date = formatRelativeDate(item.createdAt);
 
       card.innerHTML = `
-        <div class="card-link" data-url="${item.pageUrl}">
+        <div class="card-link"
+          data-url="${item.pageUrl}">
+
           <img
             src="${item.imgUrl}"
             class="card-img"
@@ -348,20 +363,30 @@ document.addEventListener("DOMContentLoaded", () => {
           >
 
           <div class="card-info">
-            <p class="card-title">${item.title}</p>
+            <p class="card-title">
+              ${item.title}
+            </p>
 
-            <div class="card-price">${price}원</div>
+            <div class="card-price">
+              ${price}원
+            </div>
 
-            <p class="card-date">${date}</p>
+            <p class="card-date">
+              ${date}
+            </p>
           </div>
         </div>
 
         <div class="card-action">
-          <button class="edit-btn" data-id="${item.id}">
+          <button
+            class="edit-btn"
+            data-id="${item.id}">
             수정
           </button>
 
-          <button class="delete-btn" data-id="${item.id}">
+          <button
+            class="delete-btn"
+            data-id="${item.id}">
             삭제
           </button>
         </div>
@@ -380,13 +405,13 @@ document.addEventListener("DOMContentLoaded", () => {
       const updated = data.shoppingList.filter((v) => v.id !== id);
 
       chrome.storage.local.set({ shoppingList: updated }, () => {
-        renderShoppingList(updated);
+        loadShoppingList();
       });
     });
   }
 
   // =========================
-  // 수정 모달 열기
+  // 수정 모달
   // =========================
 
   function openEditModal(id) {
@@ -399,14 +424,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
       editTitleInput.value = item.title;
 
-      editPriceInput.value = Number(item.price).toLocaleString();
+      editPriceInput.value = Number(item.price || 0).toLocaleString();
 
       editModal.classList.remove("hidden");
     });
   }
 
   // =========================
-  // 수정 모달 닫기
+  // 모달 닫기
   // =========================
 
   function closeModal() {
@@ -417,10 +442,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     currentEditId = null;
   }
-
-  // =========================
-  // 추가 모달 닫기
-  // =========================
 
   function closeAddModal() {
     addModal.classList.add("hidden");
@@ -462,4 +483,22 @@ document.addEventListener("DOMContentLoaded", () => {
 
     return target.toLocaleDateString();
   }
+
+  // =========================
+  // 모달 배경 클릭
+  // =========================
+
+  addModal.addEventListener("click", (e) => {
+    if (e.target === addModal) {
+      closeAddModal();
+
+      clearTemp();
+    }
+  });
+
+  editModal.addEventListener("click", (e) => {
+    if (e.target === editModal) {
+      closeModal();
+    }
+  });
 });
