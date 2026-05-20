@@ -1,39 +1,86 @@
 document.addEventListener("DOMContentLoaded", () => {
+  // =========================
+  // DOM
+  // =========================
+
   const shoppingListContainer = document.getElementById("shopping-list");
-
   const emptyMessage = document.getElementById("empty-message");
-
   const clearAllBtn = document.getElementById("clear-all-btn");
+
+  const searchInput = document.getElementById("search-input");
 
   // 수정 모달
   const editModal = document.getElementById("edit-modal");
-
   const editTitleInput = document.getElementById("edit-title");
-
   const editPriceInput = document.getElementById("edit-price");
 
   const saveEditBtn = document.getElementById("save-edit-btn");
-
   const cancelEditBtn = document.getElementById("cancel-edit-btn");
 
   // 추가 모달
   const addModal = document.getElementById("add-modal");
-
   const addTitleInput = document.getElementById("add-title");
-
   const addPriceInput = document.getElementById("add-price");
 
   const saveAddBtn = document.getElementById("save-add-btn");
-
   const cancelAddBtn = document.getElementById("cancel-add-btn");
 
   const previewImage = document.getElementById("preview-image");
+
+  // =========================
+  // 상태값
+  // =========================
 
   let currentEditId = null;
   let pendingTempItem = null;
 
   // =========================
-  // 가격 자동 쉼표
+  // 시작
+  // =========================
+
+  loadShoppingList();
+  loadTempItem();
+
+  // storage 변경 감지
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area !== "local") return;
+
+    if (changes.tempShoppingItem?.newValue) {
+      loadTempItem();
+    }
+  });
+
+  // =========================
+  // 검색 기능
+  // =========================
+
+  let searchTimer = null;
+
+  searchInput.addEventListener("input", (e) => {
+    clearTimeout(searchTimer);
+
+    searchTimer = setTimeout(() => {
+      const keyword = e.target.value.trim().toLowerCase();
+
+      chrome.storage.local.get({ shoppingList: [] }, (data) => {
+        // 검색어 없으면 전체 출력
+        if (!keyword) {
+          renderShoppingList(data.shoppingList);
+          return;
+        }
+
+        // 검색
+        const filtered = data.shoppingList.filter((item) => {
+          return item.title.toLowerCase().includes(keyword);
+        });
+
+        renderShoppingList(filtered);
+      });
+    }, 250);
+  });
+
+  // =========================
+  // 가격 입력 자동 쉼표
   // =========================
 
   function formatPriceInput(input) {
@@ -54,22 +101,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
   formatPriceInput(addPriceInput);
   formatPriceInput(editPriceInput);
-
-  // =========================
-  // 초기 로드
-  // =========================
-
-  loadShoppingList();
-  loadTempItem();
-
-  // storage 변경 감지
-  chrome.storage.onChanged.addListener((changes, area) => {
-    if (area !== "local") return;
-
-    if (changes.tempShoppingItem?.newValue) {
-      loadTempItem();
-    }
-  });
 
   // =========================
   // 임시 데이터 로드
@@ -108,11 +139,17 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const newItem = {
         id: item.id || Date.now(),
+
         title: item.title,
+
         price: item.price,
+
         imgUrl: item.imgUrl,
+
         pageUrl: item.pageUrl,
+
         createdAt: item.createdAt,
+
         updatedAt: new Date().toISOString(),
       };
 
@@ -141,7 +178,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // =========================
 
   shoppingListContainer.addEventListener("click", (e) => {
-    // 버튼 클릭 시 카드 이동 막기
+    // 버튼 클릭 시 링크 이동 방지
     if (
       e.target.classList.contains("delete-btn") ||
       e.target.classList.contains("edit-btn")
@@ -152,18 +189,16 @@ document.addEventListener("DOMContentLoaded", () => {
     // 삭제
     if (e.target.classList.contains("delete-btn")) {
       deleteItem(Number(e.target.dataset.id));
-
       return;
     }
 
     // 수정
     if (e.target.classList.contains("edit-btn")) {
       openEditModal(Number(e.target.dataset.id));
-
       return;
     }
 
-    // 카드 클릭
+    // 링크 이동
     const card = e.target.closest(".card-link");
 
     if (card?.dataset.url) {
@@ -193,6 +228,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       chrome.storage.local.set({ shoppingList: list }, () => {
         closeModal();
+
         renderShoppingList(list);
       });
     });
@@ -216,12 +252,15 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     clearTemp();
+
     closeAddModal();
+
     loadShoppingList();
   });
 
   cancelAddBtn.addEventListener("click", () => {
     closeAddModal();
+
     clearTemp();
   });
 
@@ -233,20 +272,37 @@ document.addEventListener("DOMContentLoaded", () => {
     // ESC
     if (e.key === "Escape") {
       closeModal();
+
       closeAddModal();
     }
 
     // ENTER
     if (e.key === "Enter") {
-      // 추가 저장
       if (!addModal.classList.contains("hidden")) {
         saveAddBtn.click();
       }
 
-      // 수정 저장
       if (!editModal.classList.contains("hidden")) {
         saveEditBtn.click();
       }
+    }
+  });
+
+  // =========================
+  // 모달 바깥 클릭 닫기
+  // =========================
+
+  editModal.addEventListener("click", (e) => {
+    if (e.target === editModal) {
+      closeModal();
+    }
+  });
+
+  addModal.addEventListener("click", (e) => {
+    if (e.target === addModal) {
+      closeAddModal();
+
+      clearTemp();
     }
   });
 
@@ -269,7 +325,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (!list.length) {
       emptyMessage.style.display = "block";
-
       return;
     }
 
@@ -286,7 +341,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
       card.innerHTML = `
         <div class="card-link" data-url="${item.pageUrl}">
-          
           <img
             src="${item.imgUrl}"
             class="card-img"
@@ -294,32 +348,20 @@ document.addEventListener("DOMContentLoaded", () => {
           >
 
           <div class="card-info">
-            <p class="card-title">
-              ${item.title}
-            </p>
+            <p class="card-title">${item.title}</p>
 
-            <div class="card-price">
-              ${price}원
-            </div>
+            <div class="card-price">${price}원</div>
 
-            <p class="card-date">
-              ${date}
-            </p>
+            <p class="card-date">${date}</p>
           </div>
         </div>
 
         <div class="card-action">
-          <button
-            class="edit-btn"
-            data-id="${item.id}"
-          >
+          <button class="edit-btn" data-id="${item.id}">
             수정
           </button>
 
-          <button
-            class="delete-btn"
-            data-id="${item.id}"
-          >
+          <button class="delete-btn" data-id="${item.id}">
             삭제
           </button>
         </div>
@@ -364,7 +406,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // =========================
-  // 모달 닫기
+  // 수정 모달 닫기
   // =========================
 
   function closeModal() {
@@ -375,6 +417,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
     currentEditId = null;
   }
+
+  // =========================
+  // 추가 모달 닫기
+  // =========================
 
   function closeAddModal() {
     addModal.classList.add("hidden");
@@ -416,21 +462,4 @@ document.addEventListener("DOMContentLoaded", () => {
 
     return target.toLocaleDateString();
   }
-
-  // =========================
-  // 모달 바깥 클릭
-  // =========================
-
-  addModal.addEventListener("click", (e) => {
-    if (e.target === addModal) {
-      closeAddModal();
-      clearTemp();
-    }
-  });
-
-  editModal.addEventListener("click", (e) => {
-    if (e.target === editModal) {
-      closeModal();
-    }
-  });
 });

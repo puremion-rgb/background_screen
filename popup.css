@@ -4,6 +4,7 @@
 
 body {
   min-width: 320px;
+  width: 360px;
   height: 100vh;
 
   font-family: "Noto Sans KR", sans-serif;
@@ -18,7 +19,6 @@ body {
   overflow: hidden;
   user-select: none;
 }
-
 /* =========================
    헤더
 ========================= */
@@ -76,20 +76,19 @@ body {
 /* =========================
    상품 리스트
 ========================= */
-
 .grid-container {
   display: grid;
 
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, 1fr);
 
   gap: 14px;
 
-  height: calc(100vh - 90px);
-
   overflow-y: auto;
 
+  height: calc(100vh - 140px);
+
   padding-right: 6px;
-  padding-bottom: 12px;
+  padding-bottom: 30px;
 
   align-content: start;
 }
@@ -126,7 +125,7 @@ body {
   display: flex;
   flex-direction: column;
 
-  height: 265px;
+  height: 250px;
 
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.03);
 
@@ -201,7 +200,7 @@ body {
 
   line-height: 1.35;
 
-  margin: 0 0 1px 0;
+  margin: 0;
 
   overflow: hidden;
 
@@ -221,7 +220,7 @@ body {
   font-weight: 700;
 
   color: #ff4e00;
-
+  margin-top: -2px;
   margin-bottom: 2px;
 }
 
@@ -242,7 +241,7 @@ body {
 ========================= */
 
 .card-action {
-  padding: 6px 8px 8px;
+  padding: 1px 8px 10px;
 
   display: flex;
 
@@ -264,7 +263,7 @@ body {
 
   border-radius: 6px;
 
-  padding: 6px 0;
+  padding: 7px 0;
 
   font-size: 11px;
   font-weight: 600;
@@ -297,7 +296,7 @@ body {
 
   border-radius: 6px;
 
-  padding: 6px 0;
+  padding: 7px 0;
 
   font-size: 11px;
   font-weight: 600;
@@ -503,4 +502,25 @@ body {
 
 .modal-save-btn:hover {
   background: #2b6cb0;
+}
+
+.search-input {
+  width: 100%;
+  box-sizing: border-box;
+
+  padding: 10px 12px;
+
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+
+  margin-bottom: 14px;
+
+  font-size: 13px;
+
+  background: white;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: #3182ce;
 }
