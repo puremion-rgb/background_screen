@@ -611,3 +611,62 @@ body {
   outline: none;
   border-color: #3182ce;
 }
+
+/* =========================
+   토스트 메시지
+========================= */
+
+.toast {
+  position: fixed;
+
+  top: 50%;
+  left: 50%;
+
+  transform: translate(-50%, -50%);
+
+  background: #1a202c;
+  color: white;
+
+  padding: 14px 18px;
+
+  border-radius: 12px;
+
+  font-size: 13px;
+  font-weight: 500;
+
+  z-index: 9999;
+
+  opacity: 0;
+
+  pointer-events: none;
+
+  transition:
+    opacity 0.25s ease,
+    transform 0.25s ease;
+
+  backdrop-filter: blur(10px);
+
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+/* 표시 상태 */
+
+.toast.show {
+  opacity: 1;
+
+  transform: translate(-50%, -50%);
+}
+
+/* 표시 상태 */
+
+.toast.show {
+  opacity: 1;
+
+  transform: translateX(-50%) translateY(0);
+}
+
+/* 숨김 */
+
+.hidden {
+  display: none;
+}

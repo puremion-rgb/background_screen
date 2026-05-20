@@ -13,6 +13,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const sortSelect = document.getElementById("sort-select");
 
+  const toast = document.getElementById("toast");
+
   // 수정 모달
   const editModal = document.getElementById("edit-modal");
 
@@ -59,13 +61,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
       value = value.replace(/[^0-9]/g, "");
 
-      value = Number(value).toLocaleString();
-
-      if (value === "NaN") {
-        value = "";
+      if (!value) {
+        e.target.value = "";
+        return;
       }
 
-      e.target.value = value;
+      e.target.value = Number(value).toLocaleString();
     });
   }
 
@@ -77,6 +78,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // =========================
 
   loadShoppingList();
+
   loadTempItem();
 
   // =========================
@@ -126,6 +128,7 @@ document.addEventListener("DOMContentLoaded", () => {
       previewImage.src = temp.imgUrl;
 
       addTitleInput.value = "";
+
       addPriceInput.value = "";
 
       addModal.classList.remove("hidden");
@@ -145,6 +148,32 @@ document.addEventListener("DOMContentLoaded", () => {
   function saveItem(item) {
     chrome.storage.local.get({ shoppingList: [] }, (data) => {
       const list = data.shoppingList;
+
+      // =========================
+      // 중복 체크 강화
+      // =========================
+
+      const normalizedTitle = (item.title || "").trim().toLowerCase();
+
+      const exists = list.some((v) => {
+        const sameUrl = v.pageUrl && item.pageUrl && v.pageUrl === item.pageUrl;
+
+        const sameImage = v.imgUrl && item.imgUrl && v.imgUrl === item.imgUrl;
+
+        const sameTitle =
+          (v.title || "").trim().toLowerCase() === normalizedTitle;
+
+        // URL 같거나
+        // 이미지 같거나
+        // 제목까지 같으면 중복 처리
+        return sameUrl || sameImage || sameTitle;
+      });
+
+      if (exists) {
+        showToast("이미 저장된 상품입니다.");
+
+        return;
+      }
 
       const newItem = {
         id: Date.now(),
@@ -353,9 +382,10 @@ document.addEventListener("DOMContentLoaded", () => {
       const date = formatRelativeDate(item.createdAt);
 
       card.innerHTML = `
-        <div class="card-link"
-          data-url="${item.pageUrl}">
-
+        <div
+          class="card-link"
+          data-url="${item.pageUrl}"
+        >
           <img
             src="${item.imgUrl}"
             class="card-img"
@@ -380,13 +410,15 @@ document.addEventListener("DOMContentLoaded", () => {
         <div class="card-action">
           <button
             class="edit-btn"
-            data-id="${item.id}">
+            data-id="${item.id}"
+          >
             수정
           </button>
 
           <button
             class="delete-btn"
-            data-id="${item.id}">
+            data-id="${item.id}"
+          >
             삭제
           </button>
         </div>
@@ -438,6 +470,7 @@ document.addEventListener("DOMContentLoaded", () => {
     editModal.classList.add("hidden");
 
     editTitleInput.value = "";
+
     editPriceInput.value = "";
 
     currentEditId = null;
@@ -447,6 +480,7 @@ document.addEventListener("DOMContentLoaded", () => {
     addModal.classList.add("hidden");
 
     addTitleInput.value = "";
+
     addPriceInput.value = "";
 
     pendingTempItem = null;
@@ -484,6 +518,27 @@ document.addEventListener("DOMContentLoaded", () => {
     return target.toLocaleDateString();
   }
 
+  // =========================
+  // 토스트 메시지
+  // =========================
+
+  function showToast(message) {
+    toast.textContent = message;
+
+    toast.classList.remove("hidden");
+
+    setTimeout(() => {
+      toast.classList.add("show");
+    }, 10);
+
+    setTimeout(() => {
+      toast.classList.remove("show");
+
+      setTimeout(() => {
+        toast.classList.add("hidden");
+      }, 250);
+    }, 2000);
+  }
   // =========================
   // 모달 배경 클릭
   // =========================
