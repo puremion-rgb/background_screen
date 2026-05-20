@@ -26,6 +26,34 @@
         보세요!
       </p>
     </div>
+    <!-- 신규 상품 등록 모달 -->
+    <div id="add-modal" class="modal hidden">
+      <div class="modal-content">
+        <h3 class="modal-title">상품 저장</h3>
+
+        <img id="preview-image" class="preview-image" />
+
+        <input
+          type="text"
+          id="add-title"
+          class="modal-input"
+          placeholder="상품명 입력"
+        />
+
+        <input
+          type="number"
+          id="add-price"
+          class="modal-input"
+          placeholder="가격 입력"
+        />
+
+        <div class="modal-actions">
+          <button id="save-add-btn" class="modal-save-btn">저장</button>
+
+          <button id="cancel-add-btn" class="modal-cancel-btn">취소</button>
+        </div>
+      </div>
+    </div>
 
     <script src="popup.js"></script>
 

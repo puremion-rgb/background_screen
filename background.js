@@ -14,7 +14,6 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
   const imageUrl = info.srcUrl;
   const pageUrl = info.linkUrl || info.pageUrl;
 
-  // popup으로 데이터 전달 (임시 저장 방식)
   const tempItem = {
     id: Date.now(),
     imgUrl: imageUrl,
@@ -23,7 +22,13 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
   };
 
   chrome.storage.local.set({ tempShoppingItem: tempItem }, () => {
-    // popup 자동 열기 (없으면 사용자가 열면 됨)
-    chrome.action.openPopup?.();
+    if (tab?.windowId) {
+      chrome.sidePanel.open({ windowId: tab.windowId });
+    }
   });
+});
+
+// 확장프로그램 아이콘 클릭 시 사이드패널 열기
+chrome.action.onClicked.addListener((tab) => {
+  chrome.sidePanel.open({ windowId: tab.windowId });
 });

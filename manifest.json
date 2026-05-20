@@ -3,11 +3,21 @@
   "name": "Shopping Shot",
   "version": "1.0",
   "description": "쇼핑몰 이미지 스크랩 및 가격 비교 도구",
-  "permissions": ["contextMenus", "storage", "scripting", "activeTab"],
+
+  "permissions": [
+    "contextMenus",
+    "storage",
+    "scripting",
+    "activeTab",
+    "sidePanel"
+  ],
+
   "host_permissions": ["<all_urls>"],
+
   "background": {
     "service_worker": "background.js"
   },
+
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
@@ -15,10 +25,16 @@
       "all_frames": true
     }
   ],
+
+  "side_panel": {
+    "default_path": "popup.html"
+  },
+
   "action": {
-    "default_popup": "popup.html",
+    "default_title": "Shopping Shot",
     "default_icon": "icon.png"
   },
+
   "icons": {
     "16": "icon.png",
     "48": "icon.png",

@@ -12,8 +12,24 @@ document.addEventListener("DOMContentLoaded", () => {
 
   let currentEditId = null;
 
+  const addModal = document.getElementById("add-modal");
+  const addTitleInput = document.getElementById("add-title");
+  const addPriceInput = document.getElementById("add-price");
+  const saveAddBtn = document.getElementById("save-add-btn");
+  const cancelAddBtn = document.getElementById("cancel-add-btn");
+  const previewImage = document.getElementById("preview-image");
+
+  let pendingTempItem = null;
+
   loadShoppingList();
   loadTempItem(); // ⭐ 추가 핵심
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area !== "local") return;
+
+    if (changes.tempShoppingItem?.newValue) {
+      loadTempItem();
+    }
+  });
 
   // =========================
   // 임시 데이터 불러오기
@@ -21,24 +37,18 @@ document.addEventListener("DOMContentLoaded", () => {
   function loadTempItem() {
     chrome.storage.local.get(["tempShoppingItem"], (data) => {
       const temp = data.tempShoppingItem;
+
       if (!temp) return;
 
-      // 입력 모달 대신 prompt 제거 → popup에서 처리
-      const title = prompt("상품 이름을 입력하세요", "새 상품");
-      if (title === null) return clearTemp();
+      pendingTempItem = temp;
 
-      const priceStr = prompt("가격을 입력하세요 (숫자)", "10000");
-      if (priceStr === null) return clearTemp();
+      previewImage.src = temp.imgUrl;
 
-      const price = Number(priceStr.replace(/,/g, "")) || 0;
+      addTitleInput.value = "";
+      addPriceInput.value = "";
 
-      saveItem({
-        ...temp,
-        title: title.trim() || "상품명 없음",
-        price,
-      });
-
-      clearTemp();
+      addModal.classList.remove("hidden");
+      chrome.storage.local.remove("tempShoppingItem");
     });
   }
 
@@ -52,10 +62,6 @@ document.addEventListener("DOMContentLoaded", () => {
   function saveItem(item) {
     chrome.storage.local.get({ shoppingList: [] }, (data) => {
       const list = data.shoppingList;
-
-      // ⭐ 중복 방지
-      const exists = list.some((v) => v.pageUrl === item.pageUrl);
-      if (exists) return;
 
       const newItem = {
         id: item.id || Date.now(),
@@ -131,8 +137,44 @@ document.addEventListener("DOMContentLoaded", () => {
 
   cancelEditBtn.addEventListener("click", closeModal);
 
+  saveAddBtn.addEventListener("click", () => {
+    if (!pendingTempItem) return;
+
+    saveItem({
+      ...pendingTempItem,
+      title: addTitleInput.value.trim() || "상품명 없음",
+      price: Number(addPriceInput.value.replace(/,/g, "")) || 0,
+    });
+
+    clearTemp();
+    closeAddModal();
+    loadShoppingList();
+  });
+
+  cancelAddBtn.addEventListener("click", () => {
+    closeAddModal();
+    clearTemp();
+  });
+
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") closeModal();
+    // ESC → 닫기
+    if (e.key === "Escape") {
+      closeModal();
+      closeAddModal();
+    }
+
+    // ENTER → 저장
+    if (e.key === "Enter") {
+      // 상품 추가 모달 열려있을 때
+      if (!addModal.classList.contains("hidden")) {
+        saveAddBtn.click();
+      }
+
+      // 수정 모달 열려있을 때
+      if (!editModal.classList.contains("hidden")) {
+        saveEditBtn.click();
+      }
+    }
   });
 
   editModal.addEventListener("click", (e) => {
@@ -227,4 +269,20 @@ document.addEventListener("DOMContentLoaded", () => {
     editPriceInput.value = "";
     currentEditId = null;
   }
+
+  function closeAddModal() {
+    addModal.classList.add("hidden");
+
+    addTitleInput.value = "";
+    addPriceInput.value = "";
+
+    pendingTempItem = null;
+  }
+
+  addModal.addEventListener("click", (e) => {
+    if (e.target === addModal) {
+      closeAddModal();
+      clearTemp();
+    }
+  });
 });
