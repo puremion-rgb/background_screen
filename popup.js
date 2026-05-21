@@ -1,559 +1,242 @@
 document.addEventListener("DOMContentLoaded", () => {
-  // =========================
-  // DOM
-  // =========================
-
-  const shoppingListContainer = document.getElementById("shopping-list");
-
+  const container = document.getElementById("shopping-list");
   const emptyMessage = document.getElementById("empty-message");
-
-  const clearAllBtn = document.getElementById("clear-all-btn");
-
   const searchInput = document.getElementById("search-input");
-
-  const sortSelect = document.getElementById("sort-select");
-
   const toast = document.getElementById("toast");
 
-  // 수정 모달
+  // 모달
+  const confirmModal = document.getElementById("confirm-modal");
   const editModal = document.getElementById("edit-modal");
-
-  const editTitleInput = document.getElementById("edit-title");
-
-  const editPriceInput = document.getElementById("edit-price");
-
-  const saveEditBtn = document.getElementById("save-edit-btn");
-
-  const cancelEditBtn = document.getElementById("cancel-edit-btn");
-
-  // 추가 모달
-  const addModal = document.getElementById("add-modal");
-
-  const addTitleInput = document.getElementById("add-title");
-
-  const addPriceInput = document.getElementById("add-price");
-
-  const saveAddBtn = document.getElementById("save-add-btn");
-
-  const cancelAddBtn = document.getElementById("cancel-add-btn");
-
-  const previewImage = document.getElementById("preview-image");
-
-  // =========================
-  // 상태값
-  // =========================
+  const memoInput = document.getElementById("memo-input");
 
   let currentEditId = null;
-
-  let pendingTempItem = null;
-
   let currentSearch = "";
 
-  let currentSort = "latest";
-
-  // =========================
-  // 가격 자동 쉼표
-  // =========================
-
-  function formatPriceInput(input) {
-    input.addEventListener("input", (e) => {
-      let value = e.target.value;
-
-      value = value.replace(/[^0-9]/g, "");
-
-      if (!value) {
-        e.target.value = "";
-        return;
-      }
-
-      e.target.value = Number(value).toLocaleString();
-    });
-  }
-
-  formatPriceInput(addPriceInput);
-  formatPriceInput(editPriceInput);
-
-  // =========================
-  // 초기 실행
-  // =========================
-
   loadShoppingList();
-
-  loadTempItem();
-
-  // =========================
-  // 검색
-  // =========================
-
-  searchInput?.addEventListener("input", (e) => {
-    currentSearch = e.target.value;
-
-    loadShoppingList();
-  });
-
-  // =========================
-  // 정렬
-  // =========================
-
-  sortSelect?.addEventListener("change", (e) => {
-    currentSort = e.target.value;
-
-    loadShoppingList();
-  });
-
-  // =========================
-  // storage 감지
-  // =========================
+  checkPendingToast();
 
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== "local") return;
-
-    if (changes.tempShoppingItem?.newValue) {
-      loadTempItem();
+    if (changes.shoppingList) loadShoppingList();
+    if (changes.toastMessage?.newValue) {
+      showToast(changes.toastMessage.newValue);
+      chrome.storage.local.remove("toastMessage");
     }
   });
 
-  // =========================
-  // 임시 데이터 불러오기
-  // =========================
-
-  function loadTempItem() {
-    chrome.storage.local.get(["tempShoppingItem"], (data) => {
-      const temp = data.tempShoppingItem;
-
-      if (!temp) return;
-
-      pendingTempItem = temp;
-
-      previewImage.src = temp.imgUrl;
-
-      addTitleInput.value = "";
-
-      addPriceInput.value = "";
-
-      addModal.classList.remove("hidden");
-
-      chrome.storage.local.remove("tempShoppingItem");
-    });
-  }
-
-  function clearTemp() {
-    chrome.storage.local.remove("tempShoppingItem");
-  }
-
-  // =========================
-  // 저장
-  // =========================
-
-  function saveItem(item) {
-    chrome.storage.local.get({ shoppingList: [] }, (data) => {
-      const list = data.shoppingList;
-
-      // =========================
-      // 중복 체크 강화
-      // =========================
-
-      const normalizedTitle = (item.title || "").trim().toLowerCase();
-
-      const exists = list.some((v) => {
-        const sameUrl = v.pageUrl && item.pageUrl && v.pageUrl === item.pageUrl;
-
-        const sameImage = v.imgUrl && item.imgUrl && v.imgUrl === item.imgUrl;
-
-        const sameTitle =
-          (v.title || "").trim().toLowerCase() === normalizedTitle;
-
-        // URL 같거나
-        // 이미지 같거나
-        // 제목까지 같으면 중복 처리
-        return sameUrl || sameImage || sameTitle;
-      });
-
-      if (exists) {
-        showToast("이미 저장된 상품입니다.");
-
-        return;
+  function checkPendingToast() {
+    chrome.storage.local.get(["toastMessage"], (data) => {
+      if (data.toastMessage) {
+        showToast(data.toastMessage);
+        chrome.storage.local.remove("toastMessage");
       }
-
-      const newItem = {
-        id: Date.now(),
-
-        title: item.title,
-
-        price: item.price,
-
-        imgUrl: item.imgUrl,
-
-        pageUrl: item.pageUrl,
-
-        createdAt: item.createdAt || new Date().toISOString(),
-
-        updatedAt: new Date().toISOString(),
-      };
-
-      list.push(newItem);
-
-      chrome.storage.local.set({ shoppingList: list }, () => {
-        loadShoppingList();
-      });
     });
   }
 
-  // =========================
-  // 전체 삭제
-  // =========================
-
-  clearAllBtn?.addEventListener("click", () => {
-    if (!confirm("전체 삭제하시겠습니까?")) return;
-
-    chrome.storage.local.set({ shoppingList: [] }, () => {
-      renderShoppingList([]);
-    });
+  searchInput?.addEventListener("input", (e) => {
+    currentSearch = e.target.value.toLowerCase().trim();
+    loadShoppingList();
   });
 
-  // =========================
-  // 카드 클릭 이벤트
-  // =========================
-
-  shoppingListContainer.addEventListener("click", (e) => {
-    if (
-      e.target.classList.contains("delete-btn") ||
-      e.target.classList.contains("edit-btn")
-    ) {
-      e.stopPropagation();
-    }
-
-    // 삭제
-    if (e.target.classList.contains("delete-btn")) {
-      deleteItem(Number(e.target.dataset.id));
-
-      return;
-    }
-
-    // 수정
-    if (e.target.classList.contains("edit-btn")) {
-      openEditModal(Number(e.target.dataset.id));
-
-      return;
-    }
-
-    // 카드 클릭
-    const card = e.target.closest(".card-link");
-
-    if (card?.dataset.url) {
-      chrome.tabs.create({
-        url: card.dataset.url,
+  // --- 전체 삭제 모달 ---
+  document.getElementById("clear-all-btn")?.addEventListener("click", () => {
+    chrome.storage.local.get({ shoppingList: [] }, (data) => {
+      if (data.shoppingList.length === 0)
+        return showToast("삭제할 상품이 없습니다.");
+      confirmModal.classList.remove("hidden");
+    });
+  });
+  document
+    .getElementById("confirm-cancel-btn")
+    ?.addEventListener("click", () => confirmModal.classList.add("hidden"));
+  document
+    .getElementById("confirm-delete-btn")
+    ?.addEventListener("click", () => {
+      chrome.storage.local.set({ shoppingList: [] }, () => {
+        confirmModal.classList.add("hidden");
+        showToast("전체 삭제되었습니다.");
       });
-    }
-  });
-
-  // =========================
-  // 상품 추가 저장
-  // =========================
-
-  saveAddBtn.addEventListener("click", () => {
-    if (!pendingTempItem) return;
-
-    saveItem({
-      ...pendingTempItem,
-
-      title: addTitleInput.value.trim() || "상품명 없음",
-
-      price: Number(addPriceInput.value.replace(/,/g, "")) || 0,
     });
 
-    clearTemp();
-
-    closeAddModal();
+  // --- 편집 모달 (메모 및 태그) ---
+  const colorDots = document.querySelectorAll(".color-dot-select");
+  colorDots.forEach((dot) => {
+    dot.addEventListener("click", () => {
+      colorDots.forEach((d) => d.classList.remove("active"));
+      dot.classList.add("active");
+    });
   });
 
-  cancelAddBtn.addEventListener("click", () => {
-    closeAddModal();
+  document
+    .getElementById("edit-cancel-btn")
+    ?.addEventListener("click", () => editModal.classList.add("hidden"));
+  document.getElementById("edit-save-btn")?.addEventListener("click", () => {
+    const selectedColor = document.querySelector(".color-dot-select.active")
+      .dataset.color;
+    const memoText = memoInput.value.trim();
 
-    clearTemp();
-  });
-
-  // =========================
-  // 수정 저장
-  // =========================
-
-  saveEditBtn.addEventListener("click", () => {
     chrome.storage.local.get({ shoppingList: [] }, (data) => {
       const list = data.shoppingList;
+      const target = list.find((v) => v.id === currentEditId);
+      if (target) {
+        target.memo = memoText;
+        target.colorTag = selectedColor;
+        chrome.storage.local.set({ shoppingList: list }, () => {
+          editModal.classList.add("hidden");
+          showToast("저장되었습니다.");
+        });
+      }
+    });
+  });
 
-      const item = list.find((v) => v.id === currentEditId);
+  window.addEventListener("click", (e) => {
+    if (e.target === confirmModal) confirmModal.classList.add("hidden");
+    if (e.target === editModal) editModal.classList.add("hidden");
+  });
 
+  // --- 카드 클릭 이벤트 제어 (위임) ---
+  container.addEventListener("click", (e) => {
+    const target = e.target;
+
+    if (target.closest(".btn-del")) {
+      const id = Number(target.closest(".btn-del").dataset.id);
+      deleteItem(id);
+      return;
+    }
+    if (target.closest(".btn-edit")) {
+      const id = Number(target.closest(".btn-edit").dataset.id);
+      openEditModal(id);
+      return;
+    }
+    const cardLink = target.closest(".card-link");
+    if (cardLink && !target.closest(".action-group")) {
+      chrome.tabs.create({ url: cardLink.dataset.url });
+    }
+  });
+
+  function openEditModal(id) {
+    currentEditId = id;
+    chrome.storage.local.get({ shoppingList: [] }, (data) => {
+      const item = data.shoppingList.find((v) => v.id === id);
       if (!item) return;
 
-      item.title = editTitleInput.value.trim() || "상품명 없음";
-
-      item.price = Number(editPriceInput.value.replace(/,/g, "")) || 0;
-
-      item.updatedAt = new Date().toISOString();
-
-      chrome.storage.local.set({ shoppingList: list }, () => {
-        closeModal();
-
-        loadShoppingList();
+      memoInput.value = item.memo || "";
+      colorDots.forEach((d) => {
+        d.classList.remove("active");
+        if (d.dataset.color === (item.colorTag || ""))
+          d.classList.add("active");
       });
+      editModal.classList.remove("hidden");
     });
-  });
+  }
 
-  cancelEditBtn.addEventListener("click", closeModal);
+  function deleteItem(id) {
+    chrome.storage.local.get({ shoppingList: [] }, (data) => {
+      const updated = data.shoppingList.filter((v) => v.id !== id);
+      chrome.storage.local.set({ shoppingList: updated }, () =>
+        showToast("삭제되었습니다."),
+      );
+    });
+  }
 
-  // =========================
-  // 키 이벤트
-  // =========================
-
-  document.addEventListener("keydown", (e) => {
-    // ESC
-    if (e.key === "Escape") {
-      closeModal();
-
-      closeAddModal();
-    }
-
-    // ENTER
-    if (e.key === "Enter") {
-      if (!addModal.classList.contains("hidden")) {
-        saveAddBtn.click();
-      }
-
-      if (!editModal.classList.contains("hidden")) {
-        saveEditBtn.click();
-      }
-    }
-  });
-
-  // =========================
-  // 리스트 로드
-  // =========================
+  let draggedItemId = null;
 
   function loadShoppingList() {
     chrome.storage.local.get({ shoppingList: [] }, (data) => {
-      let list = [...data.shoppingList];
+      let list = data.shoppingList;
 
-      // 검색
-      if (currentSearch.trim()) {
-        list = list.filter((item) =>
-          item.title.toLowerCase().includes(currentSearch.toLowerCase()),
-        );
-      }
-
-      // 정렬
-      if (currentSort === "lowPrice") {
-        list.sort((a, b) => (a.price || Infinity) - (b.price || Infinity));
-      }
-
-      if (currentSort === "highPrice") {
-        list.sort((a, b) => (b.price || 0) - (a.price || 0));
-      }
-
-      if (currentSort === "latest") {
-        list.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      if (currentSearch) {
+        list = list.filter((item) => {
+          const memo = item.memo ? item.memo.toLowerCase() : "";
+          return memo.includes(currentSearch);
+        });
       }
 
       renderShoppingList(list);
     });
   }
 
-  // =========================
-  // 렌더링
-  // =========================
-
   function renderShoppingList(list) {
-    shoppingListContainer.innerHTML = "";
-
+    container.innerHTML = "";
     if (!list.length) {
+      emptyMessage.innerHTML = currentSearch
+        ? `'${currentSearch}'에 대한 결과가 없습니다.`
+        : `스크랩한 상품이 없습니다.<br />상품 이미지에서 우클릭해 보세요!`;
       emptyMessage.style.display = "block";
-
       return;
     }
-
     emptyMessage.style.display = "none";
 
     list.forEach((item) => {
       const card = document.createElement("div");
-
       card.className = "card";
+      card.draggable = true;
 
-      const price = Number(item.price || 0).toLocaleString();
+      const tooltip = item.memo ? item.memo : "클릭하여 쇼핑몰로 이동";
+      const colorTagHtml = item.colorTag
+        ? `<div class="card-color-tag" style="background-color: ${item.colorTag};"></div>`
+        : "";
 
-      const date = formatRelativeDate(item.createdAt);
-
+      // ✎ 버튼과 ✕ 버튼에 마우스를 대면 각각 전용 안내문이 나옵니다.
       card.innerHTML = `
-        <div
-          class="card-link"
-          data-url="${item.pageUrl}"
-        >
-          <img
-            src="${item.imgUrl}"
-            class="card-img"
-            loading="lazy"
-          >
-
-          <div class="card-info">
-            <p class="card-title">
-              ${item.title}
-            </p>
-
-            <div class="card-price">
-              ${price}원
-            </div>
-
-            <p class="card-date">
-              ${date}
-            </p>
+        <div class="card-link" data-url="${item.pageUrl}">
+          <div class="action-group">
+            <button class="icon-btn btn-edit" data-id="${item.id}" title="수정">✎</button>
+            <button class="icon-btn btn-del" data-id="${item.id}" title="삭제">✕</button>
           </div>
-        </div>
-
-        <div class="card-action">
-          <button
-            class="edit-btn"
-            data-id="${item.id}"
-          >
-            수정
-          </button>
-
-          <button
-            class="delete-btn"
-            data-id="${item.id}"
-          >
-            삭제
-          </button>
+          ${colorTagHtml}
+          <div class="card-img-wrap" title="${tooltip}" style="width: 100%; height: 100%;">
+            <img src="${item.imgUrl}" class="card-img" loading="lazy" draggable="false" onerror="this.src='icon.png'; this.style.objectFit='contain'; this.style.padding='20px'; background='#ffffff';">
+          </div>
         </div>
       `;
 
-      shoppingListContainer.appendChild(card);
-    });
-  }
-
-  // =========================
-  // 삭제
-  // =========================
-
-  function deleteItem(id) {
-    chrome.storage.local.get({ shoppingList: [] }, (data) => {
-      const updated = data.shoppingList.filter((v) => v.id !== id);
-
-      chrome.storage.local.set({ shoppingList: updated }, () => {
-        loadShoppingList();
+      card.addEventListener("dragstart", (e) => {
+        draggedItemId = item.id;
+        card.classList.add("dragging");
       });
+
+      card.addEventListener("dragend", () => {
+        card.classList.remove("dragging");
+      });
+
+      card.addEventListener("dragover", (e) => {
+        e.preventDefault();
+      });
+
+      card.addEventListener("drop", (e) => {
+        e.preventDefault();
+        const droppedOnItemId = item.id;
+        if (draggedItemId && draggedItemId !== droppedOnItemId) {
+          reorderList(draggedItemId, droppedOnItemId);
+        }
+      });
+
+      container.appendChild(card);
     });
   }
 
-  // =========================
-  // 수정 모달
-  // =========================
-
-  function openEditModal(id) {
+  function reorderList(fromId, toId) {
     chrome.storage.local.get({ shoppingList: [] }, (data) => {
-      const item = data.shoppingList.find((v) => v.id === id);
+      const list = data.shoppingList;
+      const fromIndex = list.findIndex((v) => v.id === fromId);
+      const toIndex = list.findIndex((v) => v.id === toId);
 
-      if (!item) return;
-
-      currentEditId = id;
-
-      editTitleInput.value = item.title;
-
-      editPriceInput.value = Number(item.price || 0).toLocaleString();
-
-      editModal.classList.remove("hidden");
+      if (fromIndex !== -1 && toIndex !== -1) {
+        const [movedItem] = list.splice(fromIndex, 1);
+        list.splice(toIndex, 0, movedItem);
+        chrome.storage.local.set({ shoppingList: list });
+      }
     });
   }
-
-  // =========================
-  // 모달 닫기
-  // =========================
-
-  function closeModal() {
-    editModal.classList.add("hidden");
-
-    editTitleInput.value = "";
-
-    editPriceInput.value = "";
-
-    currentEditId = null;
-  }
-
-  function closeAddModal() {
-    addModal.classList.add("hidden");
-
-    addTitleInput.value = "";
-
-    addPriceInput.value = "";
-
-    pendingTempItem = null;
-  }
-
-  // =========================
-  // 상대 날짜
-  // =========================
-
-  function formatRelativeDate(dateString) {
-    if (!dateString) return "";
-
-    const now = new Date();
-
-    const target = new Date(dateString);
-
-    const diffMs = now - target;
-
-    const diffMin = Math.floor(diffMs / (1000 * 60));
-
-    const diffHour = Math.floor(diffMs / (1000 * 60 * 60));
-
-    const diffDay = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-    if (diffMin < 1) return "방금 전";
-
-    if (diffMin < 60) return `${diffMin}분 전`;
-
-    if (diffHour < 24) return `${diffHour}시간 전`;
-
-    if (diffDay === 1) return "어제";
-
-    if (diffDay < 7) return `${diffDay}일 전`;
-
-    return target.toLocaleDateString();
-  }
-
-  // =========================
-  // 토스트 메시지
-  // =========================
 
   function showToast(message) {
     toast.textContent = message;
-
     toast.classList.remove("hidden");
-
-    setTimeout(() => {
-      toast.classList.add("show");
-    }, 10);
-
+    setTimeout(() => toast.classList.add("show"), 10);
     setTimeout(() => {
       toast.classList.remove("show");
-
-      setTimeout(() => {
-        toast.classList.add("hidden");
-      }, 250);
+      setTimeout(() => toast.classList.add("hidden"), 250);
     }, 2000);
   }
-  // =========================
-  // 모달 배경 클릭
-  // =========================
-
-  addModal.addEventListener("click", (e) => {
-    if (e.target === addModal) {
-      closeAddModal();
-
-      clearTemp();
-    }
-  });
-
-  editModal.addEventListener("click", (e) => {
-    if (e.target === editModal) {
-      closeModal();
-    }
-  });
 });
