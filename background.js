@@ -21,21 +21,27 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
       imgUrl: imageUrl,
       pageUrl: pageUrl,
       memo: "",
-      colorTag: ""
+      colorTag: "",
     };
 
-    const isDuplicate = list.some(v => v.imgUrl === imageUrl);
-    
+    const isDuplicate = list.some((v) => v.imgUrl === imageUrl);
+
     if (isDuplicate) {
-      chrome.storage.local.set({ toastMessage: "이미 저장된 상품입니다." }, () => {
-        if (tab?.windowId) chrome.sidePanel.open({ windowId: tab.windowId });
-      });
+      chrome.storage.local.set(
+        { toastMessage: "이미 저장된 상품입니다." },
+        () => {
+          if (tab?.windowId) chrome.sidePanel.open({ windowId: tab.windowId });
+        },
+      );
     } else {
       // 새로운 항목을 맨 앞에 추가 (드래그 순서 유지를 위해 unshift 사용)
       list.unshift(newItem);
-      chrome.storage.local.set({ shoppingList: list, toastMessage: "저장되었습니다." }, () => {
-        if (tab?.windowId) chrome.sidePanel.open({ windowId: tab.windowId });
-      });
+      chrome.storage.local.set(
+        { shoppingList: list, toastMessage: "저장되었습니다." },
+        () => {
+          if (tab?.windowId) chrome.sidePanel.open({ windowId: tab.windowId });
+        },
+      );
     }
   });
 });
