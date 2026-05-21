@@ -1,7 +1,7 @@
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.create({
     id: "add-shopping-item",
-    title: "Shopping Shot에 상품 추가",
+    title: "Shopping Shot에 상품 추가(&S)", // ✨ 뒤에 (&S)를 붙여줍니다!
     contexts: ["image"],
   });
 });
