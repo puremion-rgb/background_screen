@@ -15,9 +15,15 @@ document.addEventListener("DOMContentLoaded", () => {
   loadShoppingList();
   checkPendingToast();
 
+  // 🛠️ 보완 1: toastMessage 삭제 행위가 불필요하게 리스트를 재로딩하지 않도록 조건 분기 강화
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== "local") return;
-    if (changes.shoppingList) loadShoppingList();
+
+    // shoppingList가 실제로 변경되었을 때만 화면을 리로드합니다.
+    if (changes.shoppingList) {
+      loadShoppingList();
+    }
+
     if (changes.toastMessage?.newValue) {
       showToast(changes.toastMessage.newValue);
       chrome.storage.local.remove("toastMessage");
@@ -71,8 +77,8 @@ document.addEventListener("DOMContentLoaded", () => {
     .getElementById("edit-cancel-btn")
     ?.addEventListener("click", () => editModal.classList.add("hidden"));
   document.getElementById("edit-save-btn")?.addEventListener("click", () => {
-    const selectedColor = document.querySelector(".color-dot-select.active")
-      .dataset.color;
+    const selectedColor =
+      document.querySelector(".color-dot-select.active")?.dataset.color || "";
     const memoText = memoInput.value.trim();
 
     chrome.storage.local.get({ shoppingList: [] }, (data) => {
@@ -116,15 +122,19 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function openEditModal(id) {
     currentEditId = id;
+    // 🛠️ 보완 2: 모달을 열기 전에 기존에 입력되어 있던 서식을 깨끗하게 초기화
+    memoInput.value = "";
+    colorDots.forEach((d) => d.classList.remove("active"));
+
     chrome.storage.local.get({ shoppingList: [] }, (data) => {
       const item = data.shoppingList.find((v) => v.id === id);
       if (!item) return;
 
       memoInput.value = item.memo || "";
       colorDots.forEach((d) => {
-        d.classList.remove("active");
-        if (d.dataset.color === (item.colorTag || ""))
+        if (d.dataset.color === (item.colorTag || "")) {
           d.classList.add("active");
+        }
       });
       editModal.classList.remove("hidden");
     });
@@ -177,7 +187,6 @@ document.addEventListener("DOMContentLoaded", () => {
         ? `<div class="card-color-tag" style="background-color: ${item.colorTag};"></div>`
         : "";
 
-      // ✎ 버튼과 ✕ 버튼에 마우스를 대면 각각 전용 안내문이 나옵니다.
       card.innerHTML = `
         <div class="card-link" data-url="${item.pageUrl}">
           <div class="action-group">
@@ -225,7 +234,11 @@ document.addEventListener("DOMContentLoaded", () => {
       if (fromIndex !== -1 && toIndex !== -1) {
         const [movedItem] = list.splice(fromIndex, 1);
         list.splice(toIndex, 0, movedItem);
-        chrome.storage.local.set({ shoppingList: list });
+
+        // 🛠️ 보완 3: 순서 교체 후 스토리지가 성공적으로 세팅되면 화면을 즉시 동기화하도록 콜백 추가
+        chrome.storage.local.set({ shoppingList: list }, () => {
+          loadShoppingList();
+        });
       }
     });
   }
